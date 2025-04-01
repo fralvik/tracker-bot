@@ -90,8 +90,11 @@ async function updateClassDates(chatId, purchaseDate, endDate) {
     }
     currentDate.setDate(currentDate.getDate() + 1);
   }
+  console.log('Generated classDates:', classDates.map(d => formatDateDDMMYYYY(d)));
 
   const subscription = await redis.get(`subscription:${chatId}`) || {};
+  console.log('Subscription before update:', subscription);
+
   const pastData = (subscription.classes || []).filter(c => c.attended).map(c => ({
     date: parseDateDDMMYYYY(c.date),
     attended: c.attended,
@@ -102,6 +105,7 @@ async function updateClassDates(chatId, purchaseDate, endDate) {
 
   const visited = subscription.visited || 0;
   const remaining = 8 - visited;
+  console.log('Visited:', visited, 'Remaining:', remaining);
 
   let startDate = new Date(purchaseDate);
   startDate.setHours(0, 0, 0, 0);
@@ -110,6 +114,7 @@ async function updateClassDates(chatId, purchaseDate, endDate) {
     startDate.setHours(0, 0, 0, 0);
     startDate.setDate(startDate.getDate() + 1); // Начинаем с дня после последнего посещения
   }
+  console.log('Start date for filtering:', formatDateDDMMYYYY(startDate));
 
   let newDates = [];
   for (let i = 0; i < classDates.length && newDates.length < remaining; i++) {
@@ -117,9 +122,13 @@ async function updateClassDates(chatId, purchaseDate, endDate) {
     if (classDate < startDate) continue; // Пропускаем только даты строго меньше startDate
     newDates.push({ date: formatDateDDMMYYYY(classDate), attended: null, status: "Ожидает ответа" });
   }
+  console.log('New dates to be added:', newDates);
 
   subscription.classes = [...pastData.map(c => ({ date: formatDateDDMMYYYY(c.date), attended: c.attended, status: c.status })), ...newDates];
+  console.log('Updated subscription.classes:', subscription.classes);
+
   await redis.set(`subscription:${chatId}`, subscription);
+  console.log('Saved subscription to Redis:', subscription);
 }
 
 // Инициализация абонемента
@@ -142,10 +151,13 @@ async function startTracker(chatId) {
   subscription.remaining = 8;
   subscription.classes = [];
 
+  await redis.set(`subscription:${chatId}`, subscription); // Сохраняем перед вызовом updateClassDates
   await updateClassDates(chatId, purchaseDate, endDate);
-  await redis.set(`subscription:${chatId}`, subscription);
 
-  const firstClass = subscription.classes[0]?.date || "Нет занятий";
+  const updatedSubscription = await redis.get(`subscription:${chatId}`); // Проверяем, что сохранилось
+  console.log('Final subscription after updateClassDates:', updatedSubscription);
+
+  const firstClass = updatedSubscription.classes[0]?.date || "Нет занятий";
   await bot.sendMessage(chatId, `Абонемент начался! Первое занятие: ${firstClass}. Я спрошу вечером, было ли оно.`, KEYBOARD).catch(err => console.error('Send message error:', err));
 }
 
