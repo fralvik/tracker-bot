@@ -108,12 +108,13 @@ async function updateClassDates(chatId, purchaseDate, endDate) {
   if (pastData.length > 0) {
     startDate = new Date(pastData[pastData.length - 1].date);
     startDate.setHours(0, 0, 0, 0);
+    startDate.setDate(startDate.getDate() + 1); // Начинаем с дня после последнего посещения
   }
 
   let newDates = [];
   for (let i = 0; i < classDates.length && newDates.length < remaining; i++) {
     const classDate = classDates[i];
-    if (classDate <= startDate) continue;
+    if (classDate < startDate) continue; // Пропускаем только даты строго меньше startDate
     newDates.push({ date: formatDateDDMMYYYY(classDate), attended: null, status: "Ожидает ответа" });
   }
 
