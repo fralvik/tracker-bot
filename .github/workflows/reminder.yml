@@ -1,0 +1,17 @@
+name: Send Reminders
+on:
+  schedule:
+    - cron: '0 17 * * *' # 20:00 по МСК (17:00 UTC)
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    env:
+      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+      - run: npm install
+      - run: node sendReminder.js
