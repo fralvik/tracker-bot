@@ -4,7 +4,7 @@
   "description": "Bot for tracker",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node sendReminder.js"
   },
   "repository": {
     "type": "git",
@@ -20,7 +20,6 @@
   "homepage": "https://github.com/fralvik/tracker-bot#readme",
   "dependencies": {
     "@upstash/redis": "^1.34.6",
-    "@vercel/kv": "^3.0.0",
     "node-telegram-bot-api": "^0.66.0"
   }
 }
