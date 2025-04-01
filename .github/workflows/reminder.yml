@@ -2,9 +2,11 @@ name: Send Reminders
 on:
   schedule:
     - cron: '0 17 * * *' # 20:00 по МСК (17:00 UTC)
+  workflow_dispatch: # Добавляем для ручного запуска
 jobs:
   send-reminder:
     runs-on: ubuntu-latest
+    environment: Production # Указываем окружение
     env:
       TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -16,9 +18,15 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18' # Обновляем до Node.js 18
+          node-version: '18'
       - name: Install dependencies
         run: npm install
+      - name: Debug environment variables
+        run: |
+          echo "TELEGRAM_TOKEN is set to: $TELEGRAM_TOKEN"
+          echo "TELEGRAM_CHAT_ID is set to: $TELEGRAM_CHAT_ID"
+          echo "UPSTASH_REDIS_REST_URL is set to: $UPSTASH_REDIS_REST_URL"
+          echo "UPSTASH_REDIS_REST_TOKEN is set to: $UPSTASH_REDIS_REST_TOKEN"
       - name: Run sendReminder.js
         run: node sendReminder.js
       - name: Log failure (if any)
