@@ -1,9 +1,15 @@
 const TelegramBot = require('node-telegram-bot-api');
-const { kv } = require('@vercel/kv');
+const { Redis } = require('@upstash/redis');
 
 const TOKEN = process.env.TELEGRAM_TOKEN;
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const bot = new TelegramBot(TOKEN);
+
+// Инициализация Upstash Redis
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
 
 const DAYS_OF_CLASSES = [1, 3, 5]; // Понедельник, Среда, Пятница
 const KEYBOARD = {
@@ -53,7 +59,7 @@ async function countAvailableDates(chatId, startDate, endDate) {
     currentDate.setDate(currentDate.getDate() + 1);
   }
 
-  const subscription = await kv.get(`subscription:${chatId}`) || {};
+  const subscription = await redis.get(`subscription:${chatId}`) || {};
   const usedDates = (subscription.classes || []).filter(c => c.attended && new Date(parseDateDDMMYYYY(c.date)) >= startDate && new Date(parseDateDDMMYYYY(c.date)) <= endDate).length;
   return Math.max(0, count - usedDates);
 }
@@ -72,7 +78,7 @@ async function updateClassDates(chatId, purchaseDate, endDate) {
     currentDate.setDate(currentDate.getDate() + 1);
   }
 
-  const subscription = await kv.get(`subscription:${chatId}`) || {};
+  const subscription = await redis.get(`subscription:${chatId}`) || {};
   const pastData = (subscription.classes || []).filter(c => c.attended).map(c => ({
     date: parseDateDDMMYYYY(c.date),
     attended: c.attended,
@@ -99,12 +105,12 @@ async function updateClassDates(chatId, purchaseDate, endDate) {
   }
 
   subscription.classes = [...pastData.map(c => ({ date: formatDateDDMMYYYY(c.date), attended: c.attended, status: c.status })), ...newDates];
-  await kv.set(`subscription:${chatId}`, subscription);
+  await redis.set(`subscription:${chatId}`, subscription);
 }
 
 // Инициализация абонемента
 async function startTracker(chatId) {
-  const subscription = await kv.get(`subscription:${chatId}`) || {};
+  const subscription = await redis.get(`subscription:${chatId}`) || {};
   const purchaseDateStr = subscription.purchaseDate;
   const purchaseDate = parseDateDDMMYYYY(purchaseDateStr);
   if (!purchaseDate) {
@@ -123,7 +129,7 @@ async function startTracker(chatId) {
   subscription.classes = [];
 
   await updateClassDates(chatId, purchaseDate, endDate);
-  await kv.set(`subscription:${chatId}`, subscription);
+  await redis.set(`subscription:${chatId}`, subscription);
 
   const firstClass = subscription.classes[0]?.date || "Нет занятий";
   await bot.sendMessage(chatId, `Абонемент начался! Первое занятие: ${firstClass}. Я спрошу вечером, было ли оно.`, KEYBOARD).catch(err => console.error('Send message error:', err));
@@ -146,7 +152,7 @@ module.exports = async (req, res) => {
       return res.status(200).send();
     }
 
-    let subscription = (await kv.get(`subscription:${chatId}`)) || {};
+    let subscription = (await redis.get(`subscription:${chatId}`)) || {};
 
     // Проверка ожидания даты покупки
     if (subscription.awaitingPurchaseDate) {
@@ -158,7 +164,7 @@ module.exports = async (req, res) => {
 
       subscription.purchaseDate = text;
       subscription.awaitingPurchaseDate = false;
-      await kv.set(`subscription:${chatId}`, subscription);
+      await redis.set(`subscription:${chatId}`, subscription);
       await bot.sendMessage(chatId, `Дата покупки установлена: ${text}. Теперь нажмите "Начать заново".`, KEYBOARD).catch(err => console.error('Send message error:', err));
       return res.status(200).send();
     }
@@ -167,7 +173,7 @@ module.exports = async (req, res) => {
     if (text === "задать дату покупки") {
       await bot.sendMessage(chatId, "Введите дату покупки очередного абонемента. Формат должен быть DD.MM.YYYY.", KEYBOARD).catch(err => console.error('Send message error:', err));
       subscription.awaitingPurchaseDate = true;
-      await kv.set(`subscription:${chatId}`, subscription);
+      await redis.set(`subscription:${chatId}`, subscription);
     } else if (text === "начать заново") {
       await startTracker(chatId);
     } else if (text === "статус абонемента") {
@@ -217,7 +223,7 @@ module.exports = async (req, res) => {
           await bot.sendMessage(chatId, `Поняла, занятие пропущено. Осталось: ${subscription.remaining || 8}.`, KEYBOARD).catch(err => console.error('Send message error:', err));
         }
         await updateClassDates(chatId, purchaseDate, endDate);
-        await kv.set(`subscription:${chatId}`, subscription);
+        await redis.set(`subscription:${chatId}`, subscription);
       }
     }
 

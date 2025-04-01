@@ -1,9 +1,15 @@
 const TelegramBot = require('node-telegram-bot-api');
-const { kv } = require('@vercel/kv');
+const { Redis } = require('@upstash/redis');
 
 const TOKEN = process.env.TELEGRAM_TOKEN;
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const bot = new TelegramBot(TOKEN);
+
+// Инициализация Upstash Redis
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
 
 const DAYS_OF_CLASSES = [1, 3, 5];
 const KEYBOARD = {
@@ -53,7 +59,7 @@ async function updateClassDates(chatId, purchaseDate, endDate) {
     currentDate.setDate(currentDate.getDate() + 1);
   }
 
-  const subscription = await kv.get(`subscription:${chatId}`) || {};
+  const subscription = await redis.get(`subscription:${chatId}`) || {};
   const pastData = (subscription.classes || []).filter(c => c.attended).map(c => ({
     date: parseDateDDMMYYYY(c.date),
     attended: c.attended,
@@ -80,7 +86,7 @@ async function updateClassDates(chatId, purchaseDate, endDate) {
   }
 
   subscription.classes = [...pastData.map(c => ({ date: formatDateDDMMYYYY(c.date), attended: c.attended, status: c.status })), ...newDates];
-  await kv.set(`subscription:${chatId}`, subscription);
+  await redis.set(`subscription:${chatId}`, subscription);
 }
 
 async function checkAttendance() {
@@ -93,7 +99,7 @@ async function checkAttendance() {
       return;
     }
 
-    const subscription = await kv.get(`subscription:${CHAT_ID}`) || {};
+    const subscription = await redis.get(`subscription:${CHAT_ID}`) || {};
     const endDateStr = subscription.endDate;
     const endDate = parseDateDDMMYYYY(endDateStr);
     const purchaseDateStr = subscription.purchaseDate;
