@@ -5,6 +5,12 @@ const TOKEN = process.env.TELEGRAM_TOKEN;
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const bot = new TelegramBot(TOKEN);
 
+// Проверка переменных окружения для Upstash Redis
+if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+  console.error('Error: UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set in environment variables.');
+  process.exit(1);
+}
+
 // Инициализация Upstash Redis
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
