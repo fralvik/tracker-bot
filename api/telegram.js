@@ -3,6 +3,13 @@ const { Redis } = require('@upstash/redis');
 
 const TOKEN = process.env.TELEGRAM_TOKEN;
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+
+// Проверка переменных окружения для Telegram
+if (!TOKEN || !CHAT_ID) {
+  console.error('Error: TELEGRAM_TOKEN and TELEGRAM_CHAT_ID must be set in environment variables.');
+  process.exit(1);
+}
+
 const bot = new TelegramBot(TOKEN);
 
 // Проверка переменных окружения для Upstash Redis
@@ -144,6 +151,17 @@ async function startTracker(chatId) {
 // Основная функция обработки
 module.exports = async (req, res) => {
   try {
+    // Проверка метода запроса
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method Not Allowed. This endpoint only accepts POST requests from Telegram.' });
+    }
+
+    // Проверка наличия req.body
+    if (!req.body) {
+      console.log('No request body provided');
+      return res.status(400).json({ error: 'Bad Request: No request body provided' });
+    }
+
     const message = req.body.message;
     if (!message) {
       console.log('No message in request body');
@@ -236,6 +254,6 @@ module.exports = async (req, res) => {
     return res.status(200).send();
   } catch (error) {
     console.error('Error in telegram handler:', error);
-    return res.status(500).send();
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
 };
