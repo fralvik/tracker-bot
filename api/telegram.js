@@ -247,7 +247,7 @@ module.exports = async (req, res) => {
       const nextClassDate = nextClass ? nextClass.date : "Нет запланированных";
       await bot.sendMessage(chatId, `Следующее занятие: ${nextClassDate}`, KEYBOARD).catch(err => console.error('Send message error:', err));
     } else if (text === "да" || text === "нет") {
-      const today = new Date("2025-04-16");
+      const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayStr = formatDateDDMMYYYY(today);
       const purchaseDate = parseDateDDMMYYYY(subscription.purchaseDate);
