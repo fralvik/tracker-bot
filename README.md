@@ -138,3 +138,4 @@ git commit -m "Test reminder schedule"
 git push origin main
 Перейдите в ваш репозиторий на GitHub → Actions → выберите workflow Send Reminders.
 Дождитесь выполнения и проверьте логи. Убедитесь, что бот отправил напоминание (если сегодня день занятия: понедельник, среда или пятница).
+Last updated: 10.06.2025
