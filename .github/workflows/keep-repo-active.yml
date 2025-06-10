@@ -16,4 +16,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add README.md
           git commit -m "Auto-update README to keep repo active [skip ci]" || echo "No changes to commit"
-          git push test https://${{ secrets.PAT_TOKEN }}@github.com/fralvik/tracker-bot.git HEAD:main
+      - name: Push changes
+        run: |
+          git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/fralvik/tracker-bot.git HEAD:main
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
