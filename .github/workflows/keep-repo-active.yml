@@ -9,6 +9,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }} # Передача PAT_TOKEN для аутентификации
       - name: Update README with current date
         run: |
           echo "Last updated: $(date +'%d.%m.%Y')" >> README.md
@@ -16,12 +18,4 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add README.md
           git commit -m "Auto-update README to keep repo active [skip ci]" || echo "No changes to commit"
-      - name: Debug PAT
-        run: echo "PAT_TOKEN value: ${{ secrets.PAT_TOKEN }}"
-        env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}    
-      - name: Push changes
-        run: |
-          git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/fralvik/tracker-bot.git HEAD:main
-        env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          git push origin HEAD:main
