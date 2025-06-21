@@ -66,7 +66,7 @@ async function updateClassDates(chatId, purchaseDate, endDate) {
   }
 
   const subscription = await redis.get(`subscription:${chatId}`) || {};
-  const pastData = (subscription.classes || []).filter(c => c.attended).map(c => ({
+  const pastData = (subscription.classes || []).map(c => ({
     date: parseDateDDMMYYYY(c.date),
     attended: c.attended,
     status: c.status
@@ -74,24 +74,31 @@ async function updateClassDates(chatId, purchaseDate, endDate) {
 
   pastData.sort((a, b) => a.date - b.date);
 
-  const visited = subscription.visited || 0;
+  // Подсчитываем только посещённые занятия
+  const visited = pastData.filter(c => c.attended === "Да").length;
   const remaining = 8 - visited;
 
   let startDate = new Date(purchaseDate);
   startDate.setHours(0, 0, 0, 0);
   if (pastData.length > 0) {
     startDate = new Date(pastData[pastData.length - 1].date);
-    startDate.setHours(0, 0, 0, 0);
+    startDate.setDate(startDate.getDate() + 1);
   }
 
   let newDates = [];
   for (let i = 0; i < classDates.length && newDates.length < remaining; i++) {
     const classDate = classDates[i];
     if (classDate <= startDate) continue;
-    newDates.push({ date: formatDateDDMMYYYY(classDate), attended: null, status: "Ожидает ответа" });
+    const formattedDate = formatDateDDMMYYYY(classDate);
+    if (!pastData.some(c => formatDateDDMMYYYY(c.date) === formattedDate)) {
+      newDates.push({ date: formattedDate, attended: null, status: "Ожидает ответа" });
+    }
   }
 
   subscription.classes = [...pastData.map(c => ({ date: formatDateDDMMYYYY(c.date), attended: c.attended, status: c.status })), ...newDates];
+  subscription.visited = visited;
+  subscription.remaining = remaining;
+
   await redis.set(`subscription:${chatId}`, subscription);
 }
 

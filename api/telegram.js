@@ -85,7 +85,7 @@ async function updateClassDates(chatId, purchaseDate, endDate) {
   const subscription = await redis.get(`subscription:${chatId}`) || {};
   console.log('Subscription before update:', subscription);
 
-  // Сохраняем все прошлые записи (как посещённые, так и пропущенные)
+  // Сохраняем все прошлые записи
   const pastData = (subscription.classes || []).map(c => ({
     date: parseDateDDMMYYYY(c.date),
     attended: c.attended,
@@ -94,39 +94,41 @@ async function updateClassDates(chatId, purchaseDate, endDate) {
 
   pastData.sort((a, b) => a.date - b.date);
 
-  const visited = subscription.visited || 0;
-  const remaining = 8 - visited; // Сколько занятий осталось посетить
+  // Подсчитываем только посещённые занятия
+  const visited = pastData.filter(c => c.attended === "Да").length;
+  const remaining = 8 - visited;
   console.log('Visited:', visited, 'Remaining:', remaining);
 
   // Определяем дату начала для новых занятий
-  let startDate;
+  let startDate = new Date(purchaseDate);
+  startDate.setHours(0, 0, 0, 0);
   if (pastData.length > 0) {
-    // Берём последнюю дату из существующих занятий
-    startDate = new Date(pastData[pastData.length - 1].date);
-    startDate.setHours(0, 0, 0, 0);
+    const lastClassDate = pastData[pastData.length - 1].date;
+    startDate = new Date(lastClassDate);
     startDate.setDate(startDate.getDate() + 1); // Начинаем с дня после последней даты
-  } else {
-    startDate = new Date(purchaseDate);
-    startDate.setHours(0, 0, 0, 0);
   }
   console.log('Start date for new classes:', formatDateDDMMYYYY(startDate));
 
-  // Генерируем новые даты с учётом DAYS_OF_CLASSES
+  // Генерируем новые даты с учётом DAYS_OF_CLASSES и remaining
   let newDates = [];
   let currentDate = new Date(startDate);
   while (currentDate <= endDate && newDates.length < remaining) {
     if (DAYS_OF_CLASSES.includes(currentDate.getDay())) {
-      newDates.push({
-        date: formatDateDDMMYYYY(currentDate),
-        attended: null,
-        status: "Ожидает ответа"
-      });
+      const formattedDate = formatDateDDMMYYYY(currentDate);
+      // Пропускаем даты, которые уже есть в pastData
+      if (!pastData.some(c => formatDateDDMMYYYY(c.date) === formattedDate)) {
+        newDates.push({
+          date: formattedDate,
+          attended: null,
+          status: "Ожидает ответа"
+        });
+      }
     }
     currentDate.setDate(currentDate.getDate() + 1);
   }
   console.log('New dates to be added:', newDates);
 
-  // Обновляем subscription.classes: сохраняем все прошлые записи и добавляем новые
+  // Обновляем subscription.classes
   subscription.classes = [
     ...pastData.map(c => ({
       date: formatDateDDMMYYYY(c.date),
@@ -135,8 +137,10 @@ async function updateClassDates(chatId, purchaseDate, endDate) {
     })),
     ...newDates
   ];
-  console.log('Updated subscription.classes:', subscription.classes);
+  subscription.visited = visited;
+  subscription.remaining = remaining;
 
+  console.log('Updated subscription.classes:', subscription.classes);
   await redis.set(`subscription:${chatId}`, subscription);
   console.log('Saved subscription to Redis:', subscription);
 }
