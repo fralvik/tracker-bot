@@ -150,3 +150,4 @@ Last updated: 01.02.2026
 Last updated: 01.03.2026
 Last updated: 01.04.2026
 Last updated: 01.05.2026
+Last updated: 01.06.2026
